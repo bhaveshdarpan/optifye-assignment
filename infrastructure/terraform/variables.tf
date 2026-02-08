@@ -57,3 +57,9 @@ variable "eks_max_capacity" {
   type        = number
   default     = 2
 }
+
+variable "rtsp_instance_type" {
+  description = "EC2 instance type for RTSP demo video server"
+  type        = string
+  default     = "t3.micro"
+}

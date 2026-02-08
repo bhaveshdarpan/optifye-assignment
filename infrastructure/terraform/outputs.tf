@@ -1,5 +1,3 @@
-# Consolidated outputs for easy reference
-
 output "region" {
   description = "AWS region"
   value       = var.aws_region
@@ -25,7 +23,6 @@ output "public_subnets" {
   value       = module.vpc.public_subnets
 }
 
-# Summary output for easy copy-paste
 output "deployment_summary" {
   description = "Summary of deployed resources"
   value       = <<-EOT

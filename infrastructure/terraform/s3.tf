@@ -1,4 +1,3 @@
-# S3 bucket for storing inference results
 resource "aws_s3_bucket" "inference_results" {
   bucket = "${var.cluster_name}-inference-results-${random_id.suffix.hex}"
 
@@ -8,7 +7,6 @@ resource "aws_s3_bucket" "inference_results" {
   }
 }
 
-# Block public access
 resource "aws_s3_bucket_public_access_block" "inference_results" {
   bucket = aws_s3_bucket.inference_results.id
 
@@ -18,7 +16,6 @@ resource "aws_s3_bucket_public_access_block" "inference_results" {
   restrict_public_buckets = true
 }
 
-# Versioning disabled for cost optimization
 resource "aws_s3_bucket_versioning" "inference_results" {
   bucket = aws_s3_bucket.inference_results.id
 
@@ -27,7 +24,6 @@ resource "aws_s3_bucket_versioning" "inference_results" {
   }
 }
 
-# Lifecycle rule to delete old objects (cost optimization)
 resource "aws_s3_bucket_lifecycle_configuration" "inference_results" {
   bucket = aws_s3_bucket.inference_results.id
 
@@ -43,7 +39,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "inference_results" {
   }
 }
 
-# Server-side encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "inference_results" {
   bucket = aws_s3_bucket.inference_results.id
 
@@ -54,7 +49,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "inference_results
   }
 }
 
-# Output S3 bucket details
 output "s3_bucket_name" {
   description = "Name of the S3 bucket for inference results"
   value       = aws_s3_bucket.inference_results.id

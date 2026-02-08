@@ -1,4 +1,3 @@
-# EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 19.16"
@@ -10,31 +9,23 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
-  # Cluster access entry
-    # enable_cluster_creator_admin_permissions = true
-
-  # EKS Managed Node Group
   eks_managed_node_groups = {
     inference_nodes = {
       name = "${var.cluster_name}-nodes"
 
       instance_types = [var.eks_node_instance_type]
-      capacity_type  = "SPOT" # Use SPOT instances for ~70% cost savings
+      capacity_type  = "SPOT"
 
       min_size     = var.eks_min_capacity
       max_size     = var.eks_max_capacity
       desired_size = var.eks_desired_capacity
 
-      # Node labels
       labels = {
         role        = "inference"
         environment = var.environment
       }
 
-      # Node taints - none for general workloads
       taints = []
-
-      # Additional security groups
       vpc_security_group_ids = [aws_security_group.eks_nodes.id]
 
       tags = {
@@ -43,7 +34,6 @@ module "eks" {
     }
   }
 
-  # Cluster addons
   cluster_addons = {
     coredns = {
       most_recent = true
@@ -61,13 +51,11 @@ module "eks" {
   }
 }
 
-# Security group for EKS nodes
 resource "aws_security_group" "eks_nodes" {
   name_prefix = "${var.cluster_name}-eks-nodes-"
   description = "Security group for EKS worker nodes"
   vpc_id      = module.vpc.vpc_id
 
-  # Allow nodes to communicate with each other
   ingress {
     from_port   = 0
     to_port     = 65535
@@ -76,7 +64,6 @@ resource "aws_security_group" "eks_nodes" {
     description = "Allow node to node communication"
   }
 
-  # Allow access to MSK
   ingress {
     from_port       = 9092
     to_port         = 9092
@@ -86,7 +73,7 @@ resource "aws_security_group" "eks_nodes" {
   }
 
   ingress {
-    from_port       = 9094  # ADD THIS
+    from_port       = 9094
     to_port         = 9094
     protocol        = "tcp"
     security_groups = [aws_security_group.msk.id]
@@ -111,18 +98,6 @@ resource "aws_security_group" "eks_nodes" {
   }
 }
 
-# Allow MSK to accept connections from EKS nodes
-# resource "aws_security_group_rule" "msk_from_eks" {
-#   type                     = "ingress"
-#   from_port                = 9092
-#   to_port                  = 9092
-#   protocol                 = "tcp"
-#   source_security_group_id = aws_security_group.eks_nodes.id
-#   security_group_id        = aws_security_group.msk.id
-#   description              = "Allow EKS nodes to access Kafka"
-# }
-
-# IAM role for service accounts (IRSA) - for S3 access
 module "s3_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.30"
@@ -145,7 +120,6 @@ module "s3_irsa_role" {
   }
 }
 
-# IAM policy for S3 access
 resource "aws_iam_policy" "s3_access" {
   name_prefix = "${var.cluster_name}-s3-access-"
   description = "Policy for consumer service to access S3"
@@ -170,7 +144,6 @@ resource "aws_iam_policy" "s3_access" {
   })
 }
 
-# Output EKS details
 output "eks_cluster_id" {
   description = "EKS cluster ID"
   value       = module.eks.cluster_id

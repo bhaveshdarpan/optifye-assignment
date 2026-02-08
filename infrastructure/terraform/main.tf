@@ -25,12 +25,10 @@ provider "aws" {
   }
 }
 
-# Random suffix for unique resource names
 resource "random_id" "suffix" {
   byte_length = 4
 }
 
-# VPC for our resources
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.2"

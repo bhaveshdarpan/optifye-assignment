@@ -1,10 +1,8 @@
-# Security group for MSK
 resource "aws_security_group" "msk" {
   name_prefix = "${var.cluster_name}-msk-"
   description = "Security group for MSK cluster"
   vpc_id      = module.vpc.vpc_id
 
-  # Allow Kafka plaintext communication within VPC
   ingress {
     from_port   = 9092
     to_port     = 9092
@@ -13,7 +11,6 @@ resource "aws_security_group" "msk" {
     description = "Kafka plaintext"
   }
 
-  # Allow Kafka TLS communication within VPC
   ingress {
     from_port   = 9094
     to_port     = 9094
@@ -39,7 +36,6 @@ resource "aws_security_group" "msk" {
   }
 }
 
-# CloudWatch Log Group for MSK
 resource "aws_cloudwatch_log_group" "msk" {
   name              = "/aws/msk/${var.cluster_name}"
   retention_in_days = 7
@@ -49,7 +45,6 @@ resource "aws_cloudwatch_log_group" "msk" {
   }
 }
 
-# MSK Configuration
 resource "aws_msk_configuration" "this" {
   name              = "${var.cluster_name}-config"
   kafka_versions    = ["3.5.1"]
@@ -62,7 +57,6 @@ PROPERTIES
   description = "Configuration for ${var.cluster_name} MSK cluster"
 }
 
-# MSK Cluster
 resource "aws_msk_cluster" "main" {
   cluster_name           = "${var.cluster_name}-kafka"
   kafka_version          = "3.5.1"
@@ -89,15 +83,9 @@ resource "aws_msk_cluster" "main" {
 
   encryption_info {
     encryption_in_transit {
-      #   client_broker = "TLS_PLAINTEXT" # Allow both TLS and plaintext
       client_broker = "TLS"
       in_cluster    = true
     }
-
-    # client_authentication {
-    # sasl {
-    #   iam = true
-    # }
   }
 
   logging_info {
@@ -114,7 +102,6 @@ resource "aws_msk_cluster" "main" {
   }
 }
 
-# Output bootstrap brokers
 output "kafka_bootstrap_brokers" {
   description = "Kafka bootstrap brokers (plaintext)"
   value       = aws_msk_cluster.main.bootstrap_brokers
