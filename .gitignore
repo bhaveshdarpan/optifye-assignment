@@ -56,6 +56,7 @@ kubeconfig.json
 .aws/
 credentials
 config
+.pem
 
 # Docker
 .dockerignore
