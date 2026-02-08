@@ -24,7 +24,7 @@ s3_client = boto3.client('s3', region_name=AWS_REGION)
 http_client = httpx.AsyncClient(timeout=120.0)
 
 class Colors:
-    """Color palette for different object classes"""
+    """Color palette for bounding box rendering."""
     COLORS = [
         (255, 0, 0), (0, 255, 0), (0, 0, 255),
         (255, 255, 0), (255, 0, 255), (0, 255, 255),
@@ -52,11 +52,7 @@ def draw_boxes(image, predictions):
             class_id = box['class_id']
             
             color = Colors.get_color(class_id)
-            
-            # Draw rectangle
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
-            
-            # Draw label background
             label = f"{class_name}: {confidence:.2f}"
             (label_width, label_height), _ = cv2.getTextSize(
                 label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1
@@ -68,15 +64,13 @@ def draw_boxes(image, predictions):
                 color, 
                 -1
             )
-            
-            # Draw label text
             cv2.putText(
-                image, 
-                label, 
-                (x1, y1 - 5), 
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                0.6, 
-                (255, 255, 255), 
+                image,
+                label,
+                (x1, y1 - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (255, 255, 255),
                 2
             )
     

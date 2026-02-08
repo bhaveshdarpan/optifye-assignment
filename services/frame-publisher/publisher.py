@@ -24,21 +24,20 @@ class FramePublisher:
         self.producer = KafkaProducer(
             bootstrap_servers=KAFKA_BOOTSTRAP.split(','),
             value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-            max_request_size=15728640,  # 15MB for batch
+            max_request_size=15728640,
             compression_type='gzip',
             linger_ms=10,
             security_protocol='SSL',
-            ssl_check_hostname=False,  # MSK wildcard certs
-            ssl_cafile='/etc/ssl/certs/ca-certificates.crt'  # Use system CA
+            ssl_check_hostname=False,
+            ssl_cafile='/etc/ssl/certs/ca-certificates.crt'
         )
         logger.info(f"Kafka Producer initialized: {KAFKA_BOOTSTRAP}")
     
     def connect_stream(self):
-        """Connect to RTSP stream with TCP + timeout"""
+        """Connect to RTSP stream with TCP transport."""
         while True:
-            # Force TCP transport + timeouts
             cap = cv2.VideoCapture(
-                RTSP_URL + "?_rtsp_transport=tcp",  # Force TCP
+                RTSP_URL + "?_rtsp_transport=tcp",
                 cv2.CAP_FFMPEG
             )
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -102,10 +101,10 @@ class FramePublisher:
                 }
                 
                 try:
-                    key=str(batch_id).encode()
+                    key = str(batch_id).encode()
                     future = self.producer.send(KAFKA_TOPIC, key=key, value=message)
                     future.get(timeout=10)
-                    logger.info(f"✓ Sent batch {batch_id} ({len(frame_batch)} frames)")
+                    logger.info(f"Sent batch {batch_id} ({len(frame_batch)} frames)")
                     batch_id += 1
                 except Exception as e:
                     logger.error(f"Failed to send batch: {e}")

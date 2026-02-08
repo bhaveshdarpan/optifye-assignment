@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
@@ -7,24 +8,27 @@ import base64
 from ultralytics import YOLO
 import uvicorn
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Inference Service", version="1.0.0")
 
-# Load YOLO model at startup
-model = None  # downloads on first run
+model = None
 
 @app.on_event("startup")
 async def load_model():
     global model
-    print("Loading YOLO model...")
-    model = YOLO('yolov8n.pt')  # YOLOv8 nano - fast on CPU
-    print("Model loaded successfully!")
+    from logging import getLogger
+    logger = getLogger(__name__)
+    logger.info("Loading YOLO model...")
+    model = YOLO('yolov8n.pt')
+    logger.info("Model loaded successfully")
 
 class Frame(BaseModel):
     frame_id: int
     data: str  # base64 encoded image
 
 class InferenceRequest(BaseModel):
-    frames: List[str]  # List of base64 encoded images
+    frames: List[str]  
 
 class BoundingBox(BaseModel):
     x1: float
@@ -48,13 +52,11 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "model_loaded": model is not None}
 
 @app.post("/infer", response_model=InferenceResponse)
 def infer(request: InferenceRequest):
-    """
-    Run inference on a batch of frames
-    """
+    """Run inference on a batch of frames."""
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
@@ -66,20 +68,16 @@ def infer(request: InferenceRequest):
     predictions = []
     
     for idx, frame_b64 in enumerate(request.frames):
-        try:
             # Decode base64 to image
             img_bytes = base64.b64decode(frame_b64)
             nparr = np.frombuffer(img_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
             if img is None:
-                print(f"Failed to decode frame {idx}")
+                logger.warning(f"Failed to decode frame {idx}")
                 continue
             
-            # Run YOLO inference
             results = model(img, verbose=False)[0]
-            
-            # Extract bounding boxes
             boxes = []
             if results.boxes is not None:
                 for box in results.boxes:
@@ -104,10 +102,10 @@ def infer(request: InferenceRequest):
             ))
             
         except Exception as e:
-            print(f"Error processing frame {idx}: {e}")
+            logger.error(f"Error processing frame {idx}: {e}")
             predictions.append(FramePrediction(frame_idx=idx, boxes=[]))
     
     return InferenceResponse(predictions=predictions)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="localhost", port=8000)

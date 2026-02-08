@@ -19,4 +19,4 @@ for i, video in enumerate(resp["videos"]):
     with open(f"videos/video_{i}.mp4", "wb") as f:
         f.write(data)
 
-print("Downloaded videos ✅")
+print("Downloaded videos")
