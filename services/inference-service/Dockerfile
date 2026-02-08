@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt onnxruntime
 
 # Export the model to ONNX format during build
 # This avoids all PyTorch 2.6+ "Weights only load failed" errors
-RUN python3 -c "from ultralytics import YOLO; model = YOLO('yolo26n.pt'); model.export(format='onnx')"
+RUN python3 -c "from ultralytics import YOLO; model = YOLO('yolov8n.pt'); model.export(format='onnx')"
 
 COPY app.py .
 

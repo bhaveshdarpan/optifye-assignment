@@ -19,7 +19,7 @@ model = None
 async def load_model():
     global model
     logger.info("Loading YOLO model...")
-    model = YOLO('yolo26n.onnx', task='detect')
+    model = YOLO('yolov8n.onnx', task='detect')
     logger.info("Model loaded successfully")
 
 class Frame(BaseModel):
