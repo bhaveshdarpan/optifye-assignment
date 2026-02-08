@@ -155,7 +155,7 @@ async def process_batch_async(batch_data):
 def main():
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE  # MSK wildcard workaround
+    ssl_context.verify_mode = ssl.CERT_NONE 
 
     consumer = KafkaConsumer(
         KAFKA_TOPIC,
