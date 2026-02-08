@@ -67,7 +67,8 @@ def infer(request: InferenceRequest):
 
     predictions = []
     
-    for idx, frame_b64 in enumerate(request.frames):
+    try:
+        for idx, frame_b64 in enumerate(request.frames):
             # Decode base64 to image
             img_bytes = base64.b64decode(frame_b64)
             nparr = np.frombuffer(img_bytes, np.uint8)
@@ -101,9 +102,9 @@ def infer(request: InferenceRequest):
                 boxes=boxes
             ))
             
-        except Exception as e:
-            logger.error(f"Error processing frame {idx}: {e}")
-            predictions.append(FramePrediction(frame_idx=idx, boxes=[]))
+    except Exception as e:
+        logger.error(f"Error processing frame {idx}: {e}")
+        predictions.append(FramePrediction(frame_idx=idx, boxes=[]))
     
     return InferenceResponse(predictions=predictions)
 
