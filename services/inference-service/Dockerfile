@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+ENV TORCH_FORCE_WEIGHTS_ONLY_LOAD=0
+
+# Now this will succeed during build
+RUN python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+
 COPY app.py .
 
 EXPOSE 8000

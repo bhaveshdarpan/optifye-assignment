@@ -1,4 +1,19 @@
 import logging
+import torch
+
+# PyTorch 2.6+ weights_only=True blocks YOLO checkpoints; allowlist Ultralytics classes.
+try:
+    from ultralytics.nn.tasks import DetectionModel
+    from ultralytics.nn.modules.block import Bottleneck, C2f, Conv
+    from ultralytics.nn.modules.conv import Concat
+    from ultralytics.nn.modules.head import Detect
+    
+    torch.serialization.add_safe_globals([
+        DetectionModel, Bottleneck, C2f, Conv, Concat, Detect
+    ])
+except ImportError:
+    pass
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
@@ -7,6 +22,7 @@ import numpy as np
 import base64
 from ultralytics import YOLO
 import uvicorn
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +33,13 @@ model = None
 @app.on_event("startup")
 async def load_model():
     global model
-    from logging import getLogger
-    logger = getLogger(__name__)
     logger.info("Loading YOLO model...")
     model = YOLO('yolov8n.pt')
     logger.info("Model loaded successfully")
 
 class Frame(BaseModel):
     frame_id: int
-    data: str  # base64 encoded image
+    data: str
 
 class InferenceRequest(BaseModel):
     frames: List[str]  
@@ -60,16 +74,15 @@ def infer(request: InferenceRequest):
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
-    MAX_FRAMES = 32
+    max_frames = int(os.getenv('MAX_FRAMES', '32'))
 
-    if len(request.frames) > MAX_FRAMES:
+    if len(request.frames) > max_frames:
         raise HTTPException(status_code=413, detail="Too many frames")
 
     predictions = []
     
     try:
         for idx, frame_b64 in enumerate(request.frames):
-            # Decode base64 to image
             img_bytes = base64.b64decode(frame_b64)
             nparr = np.frombuffer(img_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -109,4 +122,6 @@ def infer(request: InferenceRequest):
     return InferenceResponse(predictions=predictions)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)

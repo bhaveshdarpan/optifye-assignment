@@ -2,7 +2,9 @@ import json
 import base64
 import os
 import ssl
-import httpx 
+import signal
+import sys
+import httpx
 import cv2
 import numpy as np
 from kafka import KafkaConsumer
@@ -16,12 +18,24 @@ logger = logging.getLogger(__name__)
 
 KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'video-frames')
+KAFKA_CONSUMER_GROUP = os.getenv('KAFKA_CONSUMER_GROUP', 'inference-consumer-group')
 INFERENCE_URL = os.getenv('INFERENCE_URL', 'http://inference-service:8000')
 S3_BUCKET = os.getenv('S3_BUCKET')
-AWS_REGION = os.getenv('AWS_REGION', 'ap-south-1')
+AWS_REGION = os.getenv('AWS_REGION', '')
 
-s3_client = boto3.client('s3', region_name=AWS_REGION)
-http_client = httpx.AsyncClient(timeout=120.0)
+def _check_required():
+    missing = []
+    if not (KAFKA_BOOTSTRAP or '').strip():
+        missing.append('KAFKA_BOOTSTRAP')
+    if not (S3_BUCKET or '').strip():
+        missing.append('S3_BUCKET')
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+
+_REGION = (AWS_REGION or '').strip() or 'us-east-1'
+s3_client = boto3.client('s3', region_name=_REGION)
+HTTP_TIMEOUT = float(os.getenv('INFERENCE_HTTP_TIMEOUT', '120.0'))
+http_client = httpx.AsyncClient(timeout=HTTP_TIMEOUT)
 
 class Colors:
     """Color palette for bounding box rendering."""
@@ -40,7 +54,7 @@ def draw_boxes(image, predictions):
     if not predictions or len(predictions) == 0:
         return image
     
-    pred = predictions[0]  # First frame
+    pred = predictions[0]
     boxes = pred.get('boxes', [])
     CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", 0.5))
     
@@ -100,16 +114,12 @@ async def process_batch_async(batch_data):
     logger.info(f"Processing batch {batch_id} with {len(frames)} frames")
     
     try:
-        # Extract frame data for inference
         frame_b64_list = [f['data'] for f in frames]
-        
-        # Call inference service
         result = await call_inference_service(frame_b64_list)
         predictions = result['predictions']
         
         logger.info(f"Received {len(predictions)} predictions for batch {batch_id}")
         
-        # Post-process: annotate first frame of batch
         first_frame_b64 = frames[0]['data']
         img_bytes = base64.b64decode(first_frame_b64)
         nparr = np.frombuffer(img_bytes, np.uint8)
@@ -119,10 +129,7 @@ async def process_batch_async(batch_data):
             logger.error("Failed to decode image")
             return
         
-        # Draw boxes
         annotated_img = draw_boxes(img, predictions)
-        
-        # Upload to S3
         _, buffer = cv2.imencode('.jpg', annotated_img)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         s3_key = f"annotated/batch_{batch_id:06d}_{timestamp}.jpg"
@@ -153,39 +160,58 @@ async def process_batch_async(batch_data):
 
 
 def main():
+    _check_required()
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE 
+    ssl_context.verify_mode = ssl.CERT_NONE
 
     consumer = KafkaConsumer(
         KAFKA_TOPIC,
         bootstrap_servers=KAFKA_BOOTSTRAP.split(','),
-        group_id='inference-consumer-group',
+        group_id=KAFKA_CONSUMER_GROUP,
         value_deserializer=lambda m: json.loads(m.decode('utf-8')),
         security_protocol="SSL",
-        ssl_context=ssl_context,  # Use custom SSL context
+        ssl_context=ssl_context,
         auto_offset_reset='latest',
         enable_auto_commit=True,
         max_poll_records=1
     )
-    
+
     logger.info(f"Consumer started, listening to {KAFKA_TOPIC}")
     logger.info(f"Inference service: {INFERENCE_URL}")
     logger.info(f"S3 bucket: {S3_BUCKET}")
-    
-    # Event loop for async processing
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
-    for message in consumer:
-        try:
-            batch_data = message.value
-            loop.run_until_complete(process_batch_async(batch_data))
-        except Exception as e:
-            logger.error(f"Error in main loop: {e}", exc_info=True)
-        finally:
-            loop.run_until_complete(http_client.aclose())
-            consumer.close()
+
+    shutdown_requested = False
+
+    def shutdown(sig=None, frame=None):
+        nonlocal shutdown_requested
+        shutdown_requested = True
+        logger.info("Shutdown requested, finishing current batch then exiting...")
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+
+    try:
+        for message in consumer:
+            if shutdown_requested:
+                break
+            try:
+                batch_data = message.value
+                loop.run_until_complete(process_batch_async(batch_data))
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}", exc_info=True)
+    except KeyboardInterrupt:
+        logger.info("Interrupted")
+    finally:
+        logger.info("Closing consumer and HTTP client...")
+        loop.run_until_complete(http_client.aclose())
+        consumer.close()
+        loop.close()
+
 
 if __name__ == '__main__':
     main()
+    sys.exit(0)

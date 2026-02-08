@@ -12,10 +12,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 RTSP_URL = os.getenv('RTSP_URL', 'rtsp://localhost:8554/demo')
-KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP', 'localhost:9092')
+KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP', '')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'video-frames')
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", 25))
-FPS = int(os.getenv("FPS", 30))
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', '25'))
+FPS = int(os.getenv('FPS', '30'))
+
+if not (KAFKA_BOOTSTRAP or '').strip():
+    raise RuntimeError("Missing required environment variable: KAFKA_BOOTSTRAP")
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000|timeout;5000000"
 
@@ -79,7 +82,6 @@ class FramePublisher:
                 cap = self.connect_stream()
                 continue
             
-            # Encode and add to batch
             frame_b64 = self.encode_frame(frame)
             frame_batch.append({
                 "width": frame.shape[1],
@@ -92,7 +94,6 @@ class FramePublisher:
             
             frame_count += 1
             
-            # Send batch when we have 25 frames
             if len(frame_batch) >= BATCH_SIZE:
                 message = {
                     "batch_id": batch_id,
@@ -111,7 +112,6 @@ class FramePublisher:
                 
                 frame_batch = []
             
-            # Maintain frame rate
             elapsed = time.time() - start_time
             sleep_time = max(0, frame_time - elapsed)
             time.sleep(sleep_time)

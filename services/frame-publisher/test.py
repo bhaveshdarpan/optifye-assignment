@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test suite for frame publisher."""
+import os
 import cv2
 import numpy as np
 import base64
@@ -13,10 +14,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Publisher config (matches your deployment)
-RTSP_URL = "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov"
-BATCH_SIZE = 25
-FRAME_SKIP = 5
+RTSP_URL = os.getenv("RTSP_URL", "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov")
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "25"))
+FRAME_SKIP = int(os.getenv("FRAME_SKIP", "5"))
+INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:8000/infer")
 
 batch_frames = []
 batch_num = 0
@@ -33,14 +34,12 @@ try:
     
     logger.info("Fallback image loaded")
     logger.info("Generating test frames...")
-    
-    # Generate 2 full batches
+
     total_frames_needed = BATCH_SIZE * 2 * FRAME_SKIP
     
     for i in range(total_frames_needed):
         frame_count += 1
-        
-        # Get frame (RTSP or fallback)
+
         if cap and cap.isOpened():
             ret, frame = cap.read()
             if ret:
@@ -51,8 +50,7 @@ try:
         else:
             logger.info("Using fallback image")
             current_frame = fallback_frame
-        
-        # Simulate frame skip logic
+
         if frame_count % FRAME_SKIP == 0:
             success, buffer = cv2.imencode('.jpg', current_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
             if success:
@@ -72,7 +70,7 @@ try:
                 
                 try:
                     inference_resp = requests.post(
-                        "http://localhost:8000/infer", 
+                        INFERENCE_URL,
                         json={"frames": batch_frames[:2]},
                         timeout=10
                     )
