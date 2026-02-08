@@ -4,9 +4,9 @@ metadata:
   name: frame-publisher-config
   namespace: default
 data:
-  KAFKA_TOPIC: "video-frames"
-  BATCH_SIZE: "25"
-  FPS: "30"
+  KAFKA_TOPIC: "<KAFKA_TOPIC>"
+  BATCH_SIZE: "<BATCH_SIZE>"
+  FPS: "<FPS>"
 
 ---
 apiVersion: apps/v1
@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
         - name: publisher
-          image: 206617159102.dkr.ecr.ap-south-1.amazonaws.com/frame-publisher:latest
+          image: <ECR_REGISTRY>/frame-publisher:latest
           imagePullPolicy: Always
 
           envFrom:
@@ -39,9 +39,9 @@ spec:
 
           env:
             - name: RTSP_URL
-              value: "rtsp://3.108.221.184:8554/media"
+              value: "<RTSP_URL>"
             - name: KAFKA_BOOTSTRAP
-              value: "b-1.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094,b-2.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094"
+              value: "<MSK_BOOTSTRAP_SERVERS>"
 
           resources:
             requests:
@@ -51,7 +51,6 @@ spec:
               memory: "1Gi"
               cpu: "500m"
 
-          # Safer probe: just check process is alive
           livenessProbe:
             exec:
               command:
@@ -62,15 +61,13 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
-          
+
           readinessProbe:
             exec:
               command: ["sh", "-c", "pgrep -f publisher.py"]
             initialDelaySeconds: 30
             periodSeconds: 10
 
-
-      # restartPolicy: Always
       terminationGracePeriodSeconds: 30
 
 ---

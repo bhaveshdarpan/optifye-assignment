@@ -4,7 +4,7 @@ metadata:
   name: inference-service
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: inference-service
@@ -15,17 +15,17 @@ spec:
     spec:
       containers:
         - name: inference
-          image: 206617159102.dkr.ecr.ap-south-1.amazonaws.com/inference-service:latest
+          image: <ECR_REGISTRY>/inference-service:latest
           ports:
             - containerPort: 8000
               name: http
           resources:
             requests:
+              memory: "1Gi"
+              cpu: "400m"
+            limits:
               memory: "2Gi"
               cpu: "1000m"
-            limits:
-              memory: "4Gi"
-              cpu: "2000m"
           startupProbe:
             httpGet:
               path: /health
@@ -65,23 +65,3 @@ spec:
       port: 8000
       targetPort: 8000
   type: ClusterIP
-
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: inference-service-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: inference-service
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 75  # YOLO is CPU heavy

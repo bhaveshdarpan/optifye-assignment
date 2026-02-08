@@ -39,19 +39,18 @@ spec:
 
           env:
             - name: RTSP_URL
-              value: "rtsp://3.108.221.184:8554/media"
+              value: "rtsp://10.0.101.245:8554/media"
             - name: KAFKA_BOOTSTRAP
               value: "b-1.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094,b-2.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094"
 
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
-            limits:
               memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
               cpu: "500m"
 
-          # Safer probe: just check process is alive
           livenessProbe:
             exec:
               command:
@@ -63,7 +62,12 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
 
-      restartPolicy: Always
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pgrep -f publisher.py"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
       terminationGracePeriodSeconds: 30
 
 ---
