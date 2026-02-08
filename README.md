@@ -63,11 +63,6 @@ These components are intended to work together: the publisher produces frames, t
 - `infrastructure/kubernetes` — Kubernetes manifests and deployment variants.
 - `scripts/deploy-k8s.ps1` — convenience script for applying k8s manifests (PowerShell).
 
-**AWS account and cost**
-
-- Use a **new AWS account** (not an existing/personal one). Invite **<founders@optifye.ai>** as an Administrator so Optifye can review (see [docs/AWS_ACCOUNT_AND_COST.md](docs/AWS_ACCOUNT_AND_COST.md)).
-- The stack is sized to keep cost within the offered reimbursement (see cost notes in that doc). Set a billing alarm and monitor in Cost Explorer.
-
 **Notes & next steps**
 
 - Before applying Terraform, set AWS credentials and review `terraform.tfvars`.
