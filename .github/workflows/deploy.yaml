@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ap-south-1
-  EKS_CLUSTER: optifye-cluster
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+  EKS_CLUSTER: ${{ vars.EKS_CLUSTER || 'optifye-cluster' }}
 
 jobs:
   build-and-deploy:
@@ -70,15 +70,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Update ALL deployments
-          kubectl set image deployment/inference-service \
-            inference=$ECR_REGISTRY/inference-service:$IMAGE_TAG
-          kubectl set image deployment/consumer-service \
-            consumer=$ECR_REGISTRY/consumer-service:$IMAGE_TAG
-          kubectl set image deployment/frame-publisher \
-            publisher=$ECR_REGISTRY/frame-publisher:$IMAGE_TAG  # ADD THIS
-            
-          # Wait for rollout
+          kubectl set image deployment/inference-service inference=$ECR_REGISTRY/inference-service:$IMAGE_TAG
+          kubectl set image deployment/consumer-service consumer=$ECR_REGISTRY/consumer-service:$IMAGE_TAG
+          kubectl set image deployment/frame-publisher publisher=$ECR_REGISTRY/frame-publisher:$IMAGE_TAG
           kubectl rollout status deployment/inference-service --timeout=5m
           kubectl rollout status deployment/consumer-service --timeout=5m
           kubectl rollout status deployment/frame-publisher --timeout=5m

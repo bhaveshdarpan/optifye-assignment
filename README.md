@@ -36,10 +36,16 @@ These components are intended to work together: the publisher produces frames, t
   3. Update k8s manifests with image tags and broker endpoints (from Terraform outputs).
   4. Apply manifests to the cluster.
 
+**Configuration**
+
+- No account IDs, broker URLs, or bucket names are hardcoded. All such values come from environment variables or from Terraform/deploy script output.
+- For local runs and tests, copy [env.example](env.example) to `.env` and set `KAFKA_BOOTSTRAP`, `S3_BUCKET`, etc. Required in production: `KAFKA_BOOTSTRAP`, `S3_BUCKET` (consumer); `KAFKA_BOOTSTRAP` (publisher).
+- CI/CD: set repository variables `AWS_REGION` and `EKS_CLUSTER` (Settings > Secrets and variables > Actions) to override workflow defaults.
+
 **Quick start (local / dev)**
 
 - Prereqs: `docker`, `python3`, `kubectl` (if using k8s), `terraform`, AWS CLI (for cloud deploys).
-- Run services locally (useful for development):
+- Set required env (see [env.example](env.example)); then run services locally:
   - `python services/frame-publisher/publisher.py`
   - `python services/consumer-service/consumer.py`
   - `python services/inference-service/app.py`
@@ -57,12 +63,13 @@ These components are intended to work together: the publisher produces frames, t
 - `infrastructure/kubernetes` — Kubernetes manifests and deployment variants.
 - `scripts/deploy-k8s.ps1` — convenience script for applying k8s manifests (PowerShell).
 
+**AWS account and cost**
+
+- Use a **new AWS account** (not an existing/personal one). Invite **<founders@optifye.ai>** as an Administrator so Optifye can review (see [docs/AWS_ACCOUNT_AND_COST.md](docs/AWS_ACCOUNT_AND_COST.md)).
+- The stack is sized to keep cost within the offered reimbursement (see cost notes in that doc). Set a billing alarm and monitor in Cost Explorer.
+
 **Notes & next steps**
 
 - Before applying Terraform, set AWS credentials and review `terraform.tfvars`.
-- After `terraform apply`, run `terraform output` to get values to populate k8s manifests (MSK bootstrap servers, EKS kubeconfig info).
-- I can add a `Makefile`, `docker-compose.yml`, or a small helper script to wire Terraform outputs into k8s manifests automatically — tell me which you prefer.
-
----
-
-Concise README updated with Terraform, Kubernetes and video streaming details.
+- Manifests in `infrastructure/kubernetes/*.yaml` use placeholders (`<ECR_REGISTRY>`, `<MSK_BOOTSTRAP_SERVERS>`, etc.). Run [scripts/deploy-k8s.ps1](scripts/deploy-k8s.ps1) from the repo root to substitute Terraform outputs and generate `*-final.yaml` (then apply those). The script reads from `infrastructure/terraform` and optionally uses the RTSP server private IP from Terraform.
+- **BONUS – Kafka-lag autoscaling:** To scale the inference Deployment on Kafka consumer lag, install [KEDA](https://keda.sh) and apply the ScaledObject; see [docs/KEDA_KAFKA_LAG.md](docs/KEDA_KAFKA_LAG.md).

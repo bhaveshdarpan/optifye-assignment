@@ -51,6 +51,8 @@ videos/
 # Kubernetes
 kubeconfig
 kubeconfig.json
+# Rendered manifests (use scripts/deploy-k8s.ps1 to generate from templates)
+*-final.yaml
 
 # AWS
 .aws/
