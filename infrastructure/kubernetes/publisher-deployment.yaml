@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frame-publisher-config
+  namespace: default
+data:
+  KAFKA_TOPIC: "video-frames"
+  BATCH_SIZE: "25"
+  FPS: "30"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frame-publisher
+  namespace: default
+  labels:
+    app: frame-publisher
+    component: ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frame-publisher
+  template:
+    metadata:
+      labels:
+        app: frame-publisher
+        component: ingestion
+    spec:
+      containers:
+        - name: publisher
+          image: 206617159102.dkr.ecr.ap-south-1.amazonaws.com/frame-publisher:latest
+          imagePullPolicy: Always
+
+          envFrom:
+            - configMapRef:
+                name: frame-publisher-config
+
+          env:
+            - name: RTSP_URL
+              value: "rtsp://3.108.221.184:8554/media"
+            - name: KAFKA_BOOTSTRAP
+              value: "b-1.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094,b-2.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Safer probe: just check process is alive
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "pgrep -f publisher.py"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pgrep -f publisher.py"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+
+      # restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frame-publisher-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frame-publisher
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -1,0 +1,5 @@
+kafka-python==2.0.2
+httpx==0.25.1
+opencv-python-headless==4.9.0.80
+boto3==1.29.0
+numpy==1.24.3

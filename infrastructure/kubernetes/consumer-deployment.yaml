@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consumer-config
+  namespace: default
+data:
+  KAFKA_TOPIC: "video-frames"
+  INFERENCE_URL: "http://inference-service:8000"
+  AWS_REGION: "ap-south-1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer-service
+  template:
+    metadata:
+      labels:
+        app: consumer-service
+    spec:
+      serviceAccountName: consumer-sa
+      containers:
+        - name: consumer
+          image: 206617159102.dkr.ecr.ap-south-1.amazonaws.com/consumer-service:latest
+          envFrom:
+            - configMapRef:
+                name: consumer-config
+          env:
+            - name: KAFKA_BOOTSTRAP
+              value: "b-1.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094,b-2.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094"
+            - name: S3_BUCKET
+              value: "optifye-cluster-inference-results-32bbe989"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - pgrep -f consumer.py || exit 1
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - 'curl -f http://localhost:8000/health || exit 1'
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: consumer-sa
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::206617159102:role/optifye-cluster-consumer-s3-access
+
+# ---
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: consumer-service-hpa
+# spec:
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: consumer-service
+#   minReplicas: 2
+#   maxReplicas: 10
+#   metrics:
+#   - type: Resource
+#     resource:
+#       name: cpu
+#       target:
+#         type: Utilization
+#         averageUtilization: 70

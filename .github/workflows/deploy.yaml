@@ -1,0 +1,78 @@
+name: Build and Deploy to EKS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  EKS_CLUSTER: optifye-cluster
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push inference service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd services/inference-service
+          docker build -t $ECR_REGISTRY/inference-service:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/inference-service:$IMAGE_TAG $ECR_REGISTRY/inference-service:latest
+          docker push $ECR_REGISTRY/inference-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/inference-service:latest
+
+      - name: Build, tag, and push consumer service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd services/consumer-service
+          docker build -t $ECR_REGISTRY/consumer-service:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/consumer-service:$IMAGE_TAG $ECR_REGISTRY/consumer-service:latest
+          docker push $ECR_REGISTRY/consumer-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/consumer-service:latest
+
+      - name: Build, tag, and push frame publisher
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd services/frame-publisher
+          docker build -t $ECR_REGISTRY/frame-publisher:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/frame-publisher:$IMAGE_TAG $ECR_REGISTRY/frame-publisher:latest
+          docker push $ECR_REGISTRY/frame-publisher:$IMAGE_TAG
+          docker push $ECR_REGISTRY/frame-publisher:latest
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/inference-service \
+            inference=$ECR_REGISTRY/inference-service:$IMAGE_TAG
+          kubectl set image deployment/consumer-service \
+            consumer=$ECR_REGISTRY/consumer-service:$IMAGE_TAG
+          kubectl rollout status deployment/inference-service --timeout=5m
+          kubectl rollout status deployment/consumer-service --timeout=5m
