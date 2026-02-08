@@ -1,19 +1,4 @@
 import logging
-import torch
-
-# PyTorch 2.6+ weights_only=True blocks YOLO checkpoints; allowlist Ultralytics classes.
-try:
-    from ultralytics.nn.tasks import DetectionModel
-    from ultralytics.nn.modules.block import Bottleneck, C2f, Conv
-    from ultralytics.nn.modules.conv import Concat
-    from ultralytics.nn.modules.head import Detect
-    
-    torch.serialization.add_safe_globals([
-        DetectionModel, Bottleneck, C2f, Conv, Concat, Detect
-    ])
-except ImportError:
-    pass
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
@@ -34,7 +19,7 @@ model = None
 async def load_model():
     global model
     logger.info("Loading YOLO model...")
-    model = YOLO('yolov8n.pt')
+    model = YOLO('yolo26n.onnx', task='detect')
     logger.info("Model loaded successfully")
 
 class Frame(BaseModel):
