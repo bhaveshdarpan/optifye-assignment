@@ -1,4 +1,4 @@
-# optifye-assignment
+# video-streaming-and-inference
 
 A small sample project demonstrating a microservice pipeline for video/frame streaming and inference,
 with Terraform-managed AWS infrastructure and Kubernetes deployment manifests.
