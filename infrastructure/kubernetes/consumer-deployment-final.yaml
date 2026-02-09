@@ -5,6 +5,7 @@ metadata:
   namespace: default
 data:
   KAFKA_TOPIC: "video-frames"
+  KAFKA_CONSUMER_GROUP: "inference-consumer-group"
   INFERENCE_URL: "http://inference-service:8000"
   AWS_REGION: "ap-south-1"
 ---

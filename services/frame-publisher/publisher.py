@@ -11,7 +11,7 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RTSP_URL = os.getenv('RTSP_URL', 'rtsp://localhost:8554/demo')
+RTSP_URL = os.getenv('RTSP_URL', 'rtsp://localhost:8554/media')
 KAFKA_BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP', '')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'video-frames')
 BATCH_SIZE = int(os.getenv('BATCH_SIZE', '25'))
@@ -37,21 +37,27 @@ class FramePublisher:
         logger.info(f"Kafka Producer initialized: {KAFKA_BOOTSTRAP}")
     
     def connect_stream(self):
-        """Connect to RTSP stream with TCP transport."""
+        """Connect to RTSP stream with improved error handling."""
         while True:
-            cap = cv2.VideoCapture(
-                RTSP_URL + "?_rtsp_transport=tcp",
-                cv2.CAP_FFMPEG
-            )
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
+            # Strip extra params if they were accidentally passed in env var
+            clean_url = RTSP_URL.split('?')[0]
+            logger.info(f"Attempting to connect to: {clean_url}")
+            
+            cap = cv2.VideoCapture(clean_url, cv2.CAP_FFMPEG)
+            
+            # These are critical for avoiding the 'hanging' you saw in logs
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000) 
             cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
             
             if cap.isOpened():
-                logger.info(f"Connected to RTSP stream: {RTSP_URL}")
-                return cap
-                
-            logger.warning("Failed to connect, retrying in 5 seconds...")
+                # Check if we can actually grab a single frame before confirming
+                ret, _ = cap.read()
+                if ret:
+                    logger.info("Stream opened and frame successfully read.")
+                    return cap
+            
+            logger.warning(f"Connection to {clean_url} failed. Retrying in 5s...")
+            cap.release()
             time.sleep(5)
     
     def encode_frame(self, frame):

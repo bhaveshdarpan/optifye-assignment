@@ -98,6 +98,13 @@ resource "aws_security_group" "eks_nodes" {
     description     = "Allow Kafka TLS access"
   }
 
+  ingress {
+    from_port   = 8554
+    to_port     = 8554
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+    description = "Allow RTSP traffic from VPC"
+  }
 
   egress {
     from_port   = 0

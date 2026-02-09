@@ -38,6 +38,16 @@ resource "aws_security_group" "rtsp" {
   }
 }
 
+resource "aws_security_group_rule" "eks_to_rtsp" {
+  type                     = "ingress"
+  from_port                = 8554
+  to_port                  = 8554
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.rtsp.id # The RTSP SG
+  source_security_group_id = aws_security_group.eks_nodes.id # The EKS SG
+  description              = "Allow EKS nodes to reach RTSP server"
+}
+
 locals {
   rtsp_user_data = <<-EOT
 #!/bin/bash

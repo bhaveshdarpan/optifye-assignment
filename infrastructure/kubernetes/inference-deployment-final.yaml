@@ -19,7 +19,6 @@ spec:
           ports:
             - containerPort: 8000
               name: http
-          # Sized to fit 2 inference pods + consumer + publisher on one t3.medium (2 vCPU, 4 GiB)
           resources:
             requests:
               memory: "1Gi"
@@ -66,7 +65,4 @@ spec:
       port: 8000
       targetPort: 8000
   type: ClusterIP
-
-# Scaling for inference-service is done by KEDA (keda-inference-scaledobject.yaml)
-# when that manifest is applied. Do not add an HPA here or the ScaledObject will be rejected.
 
