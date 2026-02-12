@@ -39,7 +39,7 @@ spec:
 
           env:
             - name: RTSP_URL
-              value: "rtsp://10.0.101.155:8554/media"
+              value: "rtsp://10.0.101.14:8554/media"
             - name: KAFKA_BOOTSTRAP
               value: "b-1.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094,b-2.optifyeclusterkafka.s585he.c2.kafka.ap-south-1.amazonaws.com:9094"
 
