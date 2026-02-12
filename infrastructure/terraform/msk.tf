@@ -47,7 +47,7 @@ resource "aws_cloudwatch_log_group" "msk" {
 
 resource "aws_msk_configuration" "this" {
   name              = "${var.cluster_name}-config"
-  kafka_versions    = ["3.5.1"]
+  kafka_versions    = ["3.6.0"]
   server_properties = <<PROPERTIES
 auto.create.topics.enable=true
 delete.topic.enable=true
@@ -59,7 +59,7 @@ PROPERTIES
 
 resource "aws_msk_cluster" "main" {
   cluster_name           = "${var.cluster_name}-kafka"
-  kafka_version          = "3.5.1"
+  kafka_version          = "3.6.0"
   number_of_broker_nodes = var.kafka_broker_count
 
   broker_node_group_info {

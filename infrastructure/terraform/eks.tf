@@ -5,7 +5,7 @@ module "eks" {
   version = "~> 19.16"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.32"
+  cluster_version = "1.33"
 
   vpc_id                         = module.vpc.vpc_id
   subnet_ids                     = module.vpc.private_subnets
@@ -13,7 +13,8 @@ module "eks" {
 
   eks_managed_node_groups = {
     inference_nodes = {
-      name = "${var.cluster_name}-nodes"
+      name     = "${var.cluster_name}-nodes"
+      ami_type = "AL2023_x86_64_STANDARD"
 
       instance_types = [var.eks_node_instance_type]
       capacity_type  = "SPOT"

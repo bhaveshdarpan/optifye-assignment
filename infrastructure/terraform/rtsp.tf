@@ -1,10 +1,10 @@
-data "aws_ami" "amazon_linux_2" {
+data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["al2023-ami-2023*-x86_64"]
   }
 }
 
@@ -58,14 +58,15 @@ systemctl start docker
 systemctl enable docker
 
 mkdir -p /media /opt/rtsp
-curl -sL -o /media/video.mp4 "https://sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4" || \
-  curl -sL -o /media/video.mp4 "https://www.w3schools.com/html/mov_bbb.mp4"
+
+curl -sL -o /media/video.mp4 "https://www.w3schools.com/html/mov_bbb.mp4"
 
 cat > /opt/rtsp/rtsp-simple-server.yml << 'CONFIG'
 paths:
   media:
     source: file:///media/video.mp4
-    sourceOnDemand: no
+    runOnInit: loop         
+    runOnInitRestart: yes   
 CONFIG
 
 docker run -d --restart unless-stopped --name rtsp \
@@ -77,7 +78,7 @@ EOT
 }
 
 resource "aws_instance" "rtsp" {
-  ami                    = data.aws_ami.amazon_linux_2.id
+  ami                    = data.aws_ami.amazon_linux_2023.id
   instance_type           = var.rtsp_instance_type
   subnet_id               = module.vpc.public_subnets[0]
   vpc_security_group_ids  = [aws_security_group.rtsp.id]
